@@ -22,8 +22,8 @@ level_x1, level_y1 = 1154, 369
 level_x2, level_y2 = 1194, 397
 
 # Define the coordinates of resulting enchantment text
-ench_x1, ench_y1 = 851, 487
-ench_x2, ench_y2 = 1230, 522
+ench_x1, ench_y1 = 848, 489
+ench_x2, ench_y2 = 1220, 521
 
 
 def capture_screen_region(name, x1, y1, x2, y2):
