@@ -66,6 +66,13 @@ def capture_screen_region(name, x1, y1, x2, y2):
 	
 	return cropped
 
+def read_possible_enchants():
+	possible_enchs = []
+	with open("enchs_relevant_added.txt", "r") as file:
+		for line in file:
+			possible_enchs.append(line.strip())
+	return possible_enchs
+
 def extract_text_from_image(name, image, numbers_only):
 	"""
 	Extract text from an image using OCR.
