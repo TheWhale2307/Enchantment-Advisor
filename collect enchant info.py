@@ -6,6 +6,7 @@ import numpy as np
 import pytesseract
 import subprocess
 import pyautogui
+import random
 import time
 
 # Safety setting: fail-safe by moving mouse to corner
@@ -18,8 +19,8 @@ throw_away_x, throw_away_y = 684, 468
 
 # Define the coordinates of enchantment level text
 slotheight = 57
-level_x1, level_y1 = 1154, 369 + slotheight
-level_x2, level_y2 = 1194, 397 + slotheight
+level_x1, level_y1 = 1154, 369
+level_x2, level_y2 = 1194, 397
 
 # Define the coordinates of resulting enchantment text
 ench_x1, ench_y1 = 848, 489
@@ -115,6 +116,12 @@ def extract_text_from_image(name, image, numbers_only):
 	return text.strip()
 
 def enchant_book():
+	#choose random enchantment level slot
+	enchant_level_slot = random.randint(1,3)
+	# calculate level slot height
+	chosen_level_y1 = level_y1 + slotheight * (enchant_level_slot - 1)
+	chosen_level_y2 = level_y2 + slotheight * (enchant_level_slot - 1)
+
 	# Get books into cursor
 	pyautogui.click(book_x, book_y, button='middle', _pause=False)
 	time.sleep(0.1)
@@ -126,7 +133,7 @@ def enchant_book():
 	time.sleep(0.1)
 
 	# Capture the screen region
-	image = capture_screen_region("images/level", level_x1, level_y1, level_x2, level_y2)
+	image = capture_screen_region("images/level", level_x1, chosen_level_y1, level_x2, chosen_level_y2)
 	
 	# Extract text
 	level = extract_text_from_image("images/level", image, True)
@@ -137,12 +144,11 @@ def enchant_book():
 	print("-" * 40)
 
 	# Choose enchantment slot
-	pyautogui.click(level_x1, level_y1, button='left', _pause=False)
+	pyautogui.click(level_x1, chosen_level_y1, button='left', _pause=False)
 	time.sleep(0.1)
 
 	# Hover over enchanted book
 	pyautogui.moveTo(ench_slot_x, ench_slot_y)
-
 	
 	# Capture the screen region
 	image = capture_screen_region("images/ench", ench_x1, ench_y1, ench_x2, ench_y2)
