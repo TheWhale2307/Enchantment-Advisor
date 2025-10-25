@@ -1,0 +1,44 @@
+# Copied from https://www.digminecraft.com/lists/enchantment_list_pc.php
+
+Aqua Affinity I
+Bane of Arthropods V
+Blast Protection IV
+Breach IV
+Channeling I
+Curse of Binding I
+Curse of Vanishing I
+Density V
+Depth Strider III
+Efficiency V
+Feather Falling IV
+Fire Aspect II
+Fire Protection IV
+Flame I
+Fortune III
+Frost Walker II
+Impaling V
+Infinity I
+Knockback II
+Looting III
+Loyalty III
+Luck of the Sea III
+Lure III
+Mending I
+Multishot I
+Piercing IV
+Power V
+Projectile Protection IV
+Protection IV
+Punch II
+Quick Charge III
+Respiration III
+Riptide III
+Sharpness V
+Silk Touch I
+Smite V
+Soul Speed III
+Sweeping Edge III
+Swift Sneak III
+Thorns III
+Unbreaking III
+Wind Burst III
