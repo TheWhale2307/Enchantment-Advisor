@@ -11,6 +11,21 @@ import time
 # Safety setting: fail-safe by moving mouse to corner
 pyautogui.FAILSAFE = True
 
+# Define the coordinates of certain slots
+book_x, book_y = 743, 579
+ench_slot_x, ench_slot_y = 794, 468
+throw_away_x, throw_away_y = 684, 468
+
+# Define the coordinates of enchantment level text
+slotheight = 57
+level_x1, level_y1 = 1154, 369
+level_x2, level_y2 = 1194, 397
+
+# Define the coordinates of resulting enchantment text
+ench_x1, ench_y1 = 851, 487
+ench_x2, ench_y2 = 1230, 522
+
+
 def capture_screen_region(name, x1, y1, x2, y2):
 	"""
 	Capture a specific region of the screen using spectacle on KDE.
@@ -64,8 +79,7 @@ def extract_text_from_image(name, image):
 	"""
 
 	# Convert to grayscale
-	if image.mode != 'L':
-		image = image.convert('L')
+	image = image.convert('L')
 	
 	# Increase contrast
 	#enhancer = ImageEnhance.Contrast(image)
@@ -78,7 +92,7 @@ def extract_text_from_image(name, image):
 	
 	# Apply binary threshold (convert to pure black and white)
 	image_array = np.array(image)
-	threshold = 160
+	threshold = 160 # The text of both the enchantment name and level requirement are brighter than this
 	image_array = ((image_array > threshold) * 255).astype(np.uint8)
 	image = Image.fromarray(image_array)
 
@@ -94,26 +108,20 @@ def extract_text_from_image(name, image):
 	return text.strip()
 
 def enchant_book():
-	# Define the coordinates of enchantment level text
-	x1, y1 = 1154, 484
-	x2, y2 = 1195, 513
-
-	# Define the coordinates of resulting enchantment text
-	x3, y3 = 851, 487
-	x4, y4 = 1230, 522
-	
-	# Insert book
-	pyautogui.click(745, 580, button='middle', _pause=False)
+	# Get books into cursor
+	pyautogui.click(book_x, book_y, button='middle', _pause=False)
 	time.sleep(0.1)
-	pyautogui.click(800, 470, button='left', _pause=False)
+	# Insert book into enchantment table
+	pyautogui.click(ench_slot_x, ench_slot_y, button='left', _pause=False)
 	time.sleep(0.1)
-	pyautogui.click(600, 470, button='left', _pause=False)
+	# Throw away other books
+	pyautogui.click(throw_away_x, throw_away_y, button='left', _pause=False)
 	time.sleep(0.1)
 
-	print(f"Capturing level region: ({x1}, {y1}) to ({x2}, {y2})")
+	print(f"Capturing level region: ({level_x1}, {level_y1}) to ({level_x2}, {level_y2})")
 
 	# Capture the screen region
-	image = capture_screen_region("images/level", x1, y1, x2, y2)
+	image = capture_screen_region("images/level", level_x1, level_y1, level_x2, level_y2)
 	
 	# Extract text
 	level = extract_text_from_image("images/level", image)
@@ -123,18 +131,17 @@ def enchant_book():
 	print(level)
 	print("-" * 40)
 
-	# Choose lowest enchantment slot
-	print("Clicking at (900, 500)")
-	pyautogui.click(900, 500, button='left', _pause=False)
+	# Choose enchantment slot
+	pyautogui.click(level_x1, level_y1, button='left', _pause=False)
 	time.sleep(0.1)
 
 	# Hover over enchanted book
-	pyautogui.moveTo(800, 470)
+	pyautogui.moveTo(ench_slot_x, ench_slot_y)
 
-	print(f"Capturing enchantment region: ({x3}, {y3}) to ({x4}, {y4})")
+	print(f"Capturing enchantment region: ({ench_x1}, {ench_y1}) to ({ench_x2}, {ench_y2})")
 	
 	# Capture the screen region
-	image = capture_screen_region("images/ench", x3, y3, x4, y4)
+	image = capture_screen_region("images/ench", ench_x1, ench_y1, ench_x2, ench_y2)
 	
 	# Extract text
 	ench = extract_text_from_image("images/ench", image)
@@ -145,13 +152,11 @@ def enchant_book():
 	print("-" * 40)
 	
 	# Pick up the book
-	print("Clicking at (800, 470)")
 	pyautogui.click()
 	time.sleep(0.1)
 	
 	# Throw the book out
-	print("Clicking at (600, 470)")
-	pyautogui.click(600, 470)
+	pyautogui.click(throw_away_x, throw_away_y)
 	time.sleep(0.1)
 
 	return level, ench
