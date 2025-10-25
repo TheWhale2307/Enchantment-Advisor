@@ -18,8 +18,9 @@ throw_away_x, throw_away_y = 684, 468
 
 # Define the coordinates of enchantment level text
 slotheight = 57
-level_x1, level_y1 = 1154, 369
-level_x2, level_y2 = 1194, 397
+level_x1, level_y1 = 1154, 369 + slotheight
+# level_x2, level_y2 = 1194, 397 + slotheight
+level_x2, level_y2 = 1200, 397 + slotheight
 
 # Define the coordinates of resulting enchantment text
 ench_x1, ench_y1 = 848, 489
@@ -42,7 +43,7 @@ def capture_screen_region(name, x1, y1, x2, y2):
 	# Save to current directory for debugging
 	output_path = name + ".png"
 	
-	print(f"Capturing screenshot to {output_path}...")
+	#print(f"Capturing screenshot to {output_path}...")
 	# Passed arguments mean: Fullscreen, Background, Nonotify, Output
 	result = subprocess.run(
 		['spectacle', '-f', '-b', '-n', '-o', output_path],
@@ -57,7 +58,7 @@ def capture_screen_region(name, x1, y1, x2, y2):
 	time.sleep(0.2)
 	
 	# Open image and crop to specified region
-	print(f"Cropping to region ({x1},{y1}) - ({x2},{y2})...")
+	#print(f"Cropping to region ({x1},{y1}) - ({x2},{y2})...")
 	image = Image.open(output_path)
 	
 	# PIL crop expects (left, top, right, bottom)
@@ -66,7 +67,7 @@ def capture_screen_region(name, x1, y1, x2, y2):
 	
 	return cropped
 
-def extract_text_from_image(name, image):
+def extract_text_from_image(name, image, numbers_only):
 	"""
 	Extract text from an image using OCR.
 	
@@ -94,13 +95,19 @@ def extract_text_from_image(name, image):
 	image_array = np.array(image)
 	threshold = 160 # The text of both the enchantment name and level requirement are brighter than this
 	image_array = ((image_array > threshold) * 255).astype(np.uint8)
+	# Invert image so text is in black on white background
+	image_array = 255 - image_array
 	image = Image.fromarray(image_array)
 
 	image.save(name + "_cropped_grey_thresh.png")
 
 	# Configure tesseract
+	# OEM: 3 for default OCR Engine Mode (uses both legacy and LSTM)
+	# PSM: 7 for single line text, 13 for raw single text line
 	custom_config = f'--oem 3 --psm 7'
-	# OEM 3 = Default OCR Engine Mode (uses both legacy and LSTM)
+	if numbers_only:
+		custom_config += ' outputbase digits'
+	print(custom_config)
 	
 	# Extract text
 	text = pytesseract.image_to_string(image, lang='eng', config=custom_config)
@@ -118,13 +125,13 @@ def enchant_book():
 	pyautogui.click(throw_away_x, throw_away_y, button='left', _pause=False)
 	time.sleep(0.1)
 
-	print(f"Capturing level region: ({level_x1}, {level_y1}) to ({level_x2}, {level_y2})")
+	#print(f"Capturing level region: ({level_x1}, {level_y1}) to ({level_x2}, {level_y2})")
 
 	# Capture the screen region
 	image = capture_screen_region("images/level", level_x1, level_y1, level_x2, level_y2)
 	
 	# Extract text
-	level = extract_text_from_image("images/level", image)
+	level = extract_text_from_image("images/level", image, True)
 	
 	print("\nExtracted text:")
 	print("-" * 40)
@@ -138,13 +145,13 @@ def enchant_book():
 	# Hover over enchanted book
 	pyautogui.moveTo(ench_slot_x, ench_slot_y)
 
-	print(f"Capturing enchantment region: ({ench_x1}, {ench_y1}) to ({ench_x2}, {ench_y2})")
+	#print(f"Capturing enchantment region: ({ench_x1}, {ench_y1}) to ({ench_x2}, {ench_y2})")
 	
 	# Capture the screen region
 	image = capture_screen_region("images/ench", ench_x1, ench_y1, ench_x2, ench_y2)
 	
 	# Extract text
-	ench = extract_text_from_image("images/ench", image)
+	ench = extract_text_from_image("images/ench", image, False)
 	
 	print("\nExtracted text:")
 	print("-" * 40)
