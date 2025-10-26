@@ -1,0 +1,67 @@
+Aqua Affinity I
+Bane of Arthropods I
+Bane of Arthropods II
+Bane of Arthropods III
+Bane of Arthropods IV
+Bane of Arthropods V
+Blast Protection I
+Blast Protection II
+Blast Protection III
+Blast Protection IV
+Efficiency I
+Efficiency II
+Efficiency III
+Efficiency IV
+Efficiency V
+Feather Falling I
+Feather Falling II
+Feather Falling III
+Feather Falling IV
+Fire Aspect I
+Fire Aspect II
+Fire Protection I
+Fire Protection II
+Fire Protection III
+Fire Protection IV
+Flame I
+Fortune I
+Fortune II
+Fortune III
+Infinity I
+Knockback I
+Knockback II
+Looting I
+Looting II
+Looting III
+Power I
+Power II
+Power III
+Power IV
+Power V
+Projectile Protection I
+Projectile Protection II
+Projectile Protection III
+Projectile Protection IV
+Protection I
+Protection II
+Protection III
+Protection IV
+Punch I
+Punch II
+Respiration I
+Respiration II
+Respiration III
+Sharpness I
+Sharpness II
+Sharpness III
+Sharpness IV
+Sharpness V
+Silk Touch I
+Smite I
+Smite II
+Smite III
+Smite IV
+Smite V
+Unbreaking I
+Unbreaking II
+Unbreaking III
