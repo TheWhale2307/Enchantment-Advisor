@@ -253,7 +253,7 @@ def main():
 			if choice.lower() == 'y':
 				print("Number of hashes in the lookup table: " + str(len(hashes.keys())))
 				with open ('hashes.json', 'w') as outfile:
-					# Sort by value alphabetically
+					# Sort by value alphabetically to make checking for missing (not yet encountered) values easier
 					hashes = {k: v for k, v in sorted(hashes.items(), key=lambda item: item[1])}
 					json.dump(hashes, outfile, indent=4)
 				print("Exiting...")
