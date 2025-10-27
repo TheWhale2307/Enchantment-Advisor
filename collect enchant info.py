@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 
 from difflib import SequenceMatcher
+from collections import defaultdict
 from pynput import keyboard as kb
 from PIL import Image
 import numpy as np
@@ -8,6 +9,7 @@ import pytesseract
 import subprocess
 import pyautogui
 import hashlib
+import pprint
 import random
 import json
 import time
@@ -34,13 +36,7 @@ with open("enchs_relevant_added.txt", "r") as file:
 	for line in file:
 		possible_enchs.append(line.strip())
 
-hashes = {}
-try:
-	with open("hashes.json") as file:
-		hashes=json.load(file)
-except:
-	print("Hashes file does not exist or corrupted, creating a new one...")
-
+# Add keyboard listener to interrupt the program even when Minecraft has focus and not the terminal
 w_pressed = False
 
 def on_press(key):
@@ -53,6 +49,30 @@ def on_press(key):
 
 listener = kb.Listener(on_press=on_press)
 listener.start()
+
+def nested_defaultdict_from_dict(d, depth):
+	"""Recursively convert a dict to nested defaultdicts with proper depth"""
+	# Create all the factories upfront
+	factories = [int]  # Base factory
+	for i in range(1, depth):
+		prev_factory = factories[-1]
+		factories.append(lambda pf=prev_factory: defaultdict(pf))
+	
+	def convert(data, current_depth):
+		if current_depth == 0:
+			return data
+		
+		result = defaultdict(factories[current_depth - 1])
+		
+		for key, value in data.items():
+			if isinstance(value, dict):
+				result[key] = convert(value, current_depth - 1)
+			else:
+				result[key] = value
+		
+		return result
+	
+	return convert(d, depth)
 
 def capture_screen_region(name, x1, y1, x2, y2):
 	"""
@@ -166,7 +186,7 @@ def find_best_match(unknown_string, possible_strings, cutoff=0.6):
 	
 	return best_match, best_ratio
 
-def enchant_book():
+def enchant_book(hashes):
 	#choose random enchantment level slot
 	enchant_level_slot = random.randint(1,3)
 	# calculate level slot height
@@ -189,7 +209,7 @@ def enchant_book():
 	# Hash the image
 	hash = hashlib.sha256(image.tobytes()).hexdigest()
 	
-	if hash in hashes.__contains__(hash):
+	if hash in hashes:
 		level = hashes[hash]
 	else:
 		# Extract text
@@ -213,7 +233,7 @@ def enchant_book():
 	# Hash the image
 	hash = hashlib.sha256(image.tobytes()).hexdigest()
 	
-	if hash in hashes.__contains__(hash):
+	if hash in hashes:
 		ench = hashes[hash]
 	else:
 		# Extract text
@@ -234,9 +254,55 @@ def enchant_book():
 
 	return level, ench
 
+def sort_key(item):
+	key = item[0]
+	
+	# If it's a string that represents a number, treat it as a number
+	if isinstance(key, str) and key.isdigit():
+		return (0, int(key))
+	# Otherwise treat it as a string
+	else:
+		return (1, key)
+	
+def sort_val(item):
+	key = item[1]
+	
+	# If it's a string that represents a number, treat it as a number
+	if isinstance(key, str) and key.isdigit():
+		return (0, int(key))
+	# Otherwise treat it as a string
+	else:
+		return (1, key)
+	
+def sort_nested_dict(d):
+	"""Recursively sort a dict/defaultdict with proper numeric ordering for string keys"""
+	result = {}
+	
+	for key, value in sorted(d.items(), key=sort_key):
+		if isinstance(value, dict):
+			result[key] = sort_nested_dict(value)
+		else:
+			result[key] = value
+	return result
+
 def main():
 	global w_pressed
-	global hashes
+
+	try:
+		with open("hashes.json") as file:
+			hashes=json.load(file)
+	except:
+		print("Hashes file does not exist or is corrupted, creating a new one...")
+		hashes = {}
+
+	# Slightly cursed datatype (I refuse to use databases, they are for nerds)
+	try:
+		with open("data.json") as file:
+			data = nested_defaultdict_from_dict(json.load(file), 3)
+	except:
+		print("Data file does not exist or is corrupted, creating a new one...")
+		data = defaultdict(lambda: defaultdict(lambda: defaultdict(int)))
+
 	print("Starting in 3 seconds... Move mouse to corner to abort")
 	time.sleep(3)
 
@@ -245,8 +311,9 @@ def main():
 			if w_pressed:
 				w_pressed = False
 				raise KeyboardInterrupt
-			level, ench = enchant_book()
+			level, ench = enchant_book(hashes)
 			print("Got " + ench + " for " + level + " levels.")
+			data["123"][level][ench] += 1
 		except KeyboardInterrupt:
 			print("\nCtrl+C caught! Do you want to quit? (y/n)")
 			choice = input()
@@ -254,8 +321,12 @@ def main():
 				print("Number of hashes in the lookup table: " + str(len(hashes.keys())))
 				with open ('hashes.json', 'w') as outfile:
 					# Sort by value alphabetically to make checking for missing (not yet encountered) values easier
-					hashes = {k: v for k, v in sorted(hashes.items(), key=lambda item: item[1])}
+					hashes = {k: v for k, v in sorted(hashes.items(), key=sort_val)}
 					json.dump(hashes, outfile, indent=4)
+				
+				with open ('data.json', 'w') as outfile:
+					data = sort_nested_dict(data)
+					json.dump(data, outfile, indent=4)
 				print("Exiting...")
 				break
 			else:
