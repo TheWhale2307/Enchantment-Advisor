@@ -35,8 +35,11 @@ with open("enchs_relevant_added.txt", "r") as file:
 		possible_enchs.append(line.strip())
 
 hashes = {}
-with open("hashes.json") as file:
-	hashes=json.load(file)
+try:
+	with open("hashes.json") as file:
+		hashes=json.load(file)
+except:
+	print("Hashes file does not exist or corrupted, creating a new one...")
 
 w_pressed = False
 
@@ -67,7 +70,6 @@ def capture_screen_region(name, x1, y1, x2, y2):
 	# Save to current directory for debugging
 	output_path = name + ".png"
 	
-	#print(f"Capturing screenshot to {output_path}...")
 	# Passed arguments mean: Fullscreen, Background, Nonotify, Output
 	result = subprocess.run(
 		['spectacle', '-f', '-b', '-n', '-o', output_path],
@@ -78,14 +80,8 @@ def capture_screen_region(name, x1, y1, x2, y2):
 	if result.returncode != 0:
 		raise RuntimeError(f"Spectacle failed: {result.stderr}")
 	
-	# Wait a moment to ensure file is written
-	#time.sleep(0.2)
-	
 	# Open image and crop to specified region
-	#print(f"Cropping to region ({x1},{y1}) - ({x2},{y2})...")
 	image = Image.open(output_path)
-	
-	# PIL crop expects (left, top, right, bottom)
 	image = image.crop((x1, y1, x2, y2))
 	image.save(name + "_cropped.png")
 
@@ -95,31 +91,31 @@ def capture_screen_region(name, x1, y1, x2, y2):
 	
 	# Apply binary threshold (convert to pure black and white)
 	image_array = np.array(image)
-	threshold = 160 # The text of both the enchantment name and level requirement are brighter than this
+	# The text of both the enchantment name and level requirement are brighter than this
+	threshold = 160
 	image_array = ((image_array > threshold) * 255).astype(np.uint8)
 	# Invert image so text is in black on white background
 	image_array = 255 - image_array
 	image = Image.fromarray(image_array)
-
 	image.save(name + "_cropped_grey_thresh.png")
 	
 	return image
 
-def extract_text_from_image(name, image, numbers_only):
+def extract_text_from_image(image, numbers_only):
 	"""
 	Extract text from an image using OCR.
 	
 	Args:
-		name: name for debug
 		image: PIL Image object
+		numbers_only: Boolean whether or not the settings for numbers should be used
 	
 	Returns:
 		Extracted text as string
 	"""
 
 	# Configure tesseract
-	# OEM: for OCR Engine Mode
-	# PSM: 7 for single line text, 13 for raw single text line
+	# OEM: for OCR Engine Mode, 0 means legacy, works best here
+	# PSM: 7 for single line text, 13 would be for raw single text line
 	custom_config = f'--oem 0 --psm 7'
 	if numbers_only:
 		custom_config += ' -c tessedit_char_whitelist=0123456789'
@@ -193,21 +189,20 @@ def enchant_book():
 	# Hash the image
 	hash = hashlib.sha256(image.tobytes()).hexdigest()
 	
-	if hashes.__contains__(hash):
+	if hash in hashes.__contains__(hash):
 		level = hashes[hash]
 	else:
 		# Extract text
-		likely_level = extract_text_from_image("images/level", image, True)
+		likely_level = extract_text_from_image(image, True)
 		# Show image to user for verification
 		image.show()
-		user_input = input("What number was just shown? Enter to accept " + likely_level + ". ")
+		user_input = input("What number is being shown in the image? Hit Return to accept " + likely_level + ". ")
 		level = likely_level if user_input == "" else user_input
 		# Save for later
 		hashes[hash] = level
 
 	# Choose enchantment slot
 	pyautogui.click(level_x1, chosen_level_y1, button='left', _pause=False)
-	#time.sleep(0.1)
 
 	# Hover over enchanted book
 	pyautogui.moveTo(ench_slot_x, ench_slot_y)
@@ -218,26 +213,24 @@ def enchant_book():
 	# Hash the image
 	hash = hashlib.sha256(image.tobytes()).hexdigest()
 	
-	if hashes.__contains__(hash):
+	if hash in hashes.__contains__(hash):
 		ench = hashes[hash]
 	else:
 		# Extract text
-		likely_ench = extract_text_from_image("images/ench", image, False)
+		likely_ench = extract_text_from_image(image, False)
 		match, ratio = find_best_match(likely_ench, possible_enchs)
 		# Show image to user for verification
 		image.show()
-		user_input = input("What enchantment was just shown? Enter to accept " + match + ". ")
+		user_input = input("What enchantment is being shown in the image? Hit Return to accept " + match + ". ")
 		ench = match if user_input == "" else user_input
 		# Save for later
 		hashes[hash] = ench
 	
 	# Pick up the book
 	pyautogui.click(ench_slot_x, ench_slot_y)
-	#time.sleep(0.1)
 	
 	# Throw the book out
 	pyautogui.click(throw_away_x, throw_away_y)
-	#time.sleep(0.1)
 
 	return level, ench
 
@@ -258,16 +251,15 @@ def main():
 			print("\nCtrl+C caught! Do you want to quit? (y/n)")
 			choice = input()
 			if choice.lower() == 'y':
-				print("Number of hashes: " + str(len(hashes.keys())))
+				print("Number of hashes in the lookup table: " + str(len(hashes.keys())))
 				with open ('hashes.json', 'w') as outfile:
+					# Sort by value alphabetically
 					hashes = {k: v for k, v in sorted(hashes.items(), key=lambda item: item[1])}
 					json.dump(hashes, outfile, indent=4)
 				print("Exiting...")
 				break
 			else:
 				print("Continuing...")
-
-	print("Done!")
 
 if __name__ == "__main__":
 	main()
