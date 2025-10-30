@@ -13,9 +13,12 @@ import pprint
 import random
 import json
 import time
+import sys
 
 # Safety setting: fail-safe by moving mouse to corner
 pyautogui.FAILSAFE = True
+
+debug = False
 
 # Define the coordinates of certain slots
 book_x, book_y = 743, 579
@@ -32,9 +35,12 @@ ench_x1, ench_y1 = 848, 489
 ench_x2, ench_y2 = 1220, 521
 
 possible_enchs = []
-with open("enchs_relevant_added.txt", "r") as file:
-	for line in file:
-		possible_enchs.append(line.strip())
+try:
+	with open("enchs_relevant_added.txt", "r") as file:
+		for line in file:
+			possible_enchs.append(line.strip())
+except:
+	print("\"enchs_relevant_added.txt\" does not exist or is corrupted, please run \"python add_lower_ench_levels.py\"")
 
 # Add keyboard listener to interrupt the program even when Minecraft has focus and not the terminal
 w_pressed = False
@@ -103,11 +109,13 @@ def capture_screen_region(name, x1, y1, x2, y2):
 	# Open image and crop to specified region
 	image = Image.open(output_path)
 	image = image.crop((x1, y1, x2, y2))
-	image.save(name + "_cropped.png")
+	if debug:
+		image.save(name + "_cropped.png")
 
 	# Convert to grayscale
 	image = image.convert('L')
-	image.save(name + "_cropped_grey.png")
+	if debug:
+		image.save(name + "_cropped_grey.png")
 	
 	# Apply binary threshold (convert to pure black and white)
 	image_array = np.array(image)
@@ -117,7 +125,8 @@ def capture_screen_region(name, x1, y1, x2, y2):
 	# Invert image so text is in black on white background
 	image_array = 255 - image_array
 	image = Image.fromarray(image_array)
-	image.save(name + "_cropped_grey_thresh.png")
+	if debug:
+		image.save(name + "_cropped_grey_thresh.png")
 	
 	return image
 
@@ -147,21 +156,17 @@ def extract_text_from_image(image, numbers_only):
 
 	return text
 
-def find_best_match(unknown_string, possible_strings, cutoff=0.6):
+def find_best_match(unknown_string, possible_strings):
 	"""
 	Find the best matching string from a list of possible strings.
 	
 	Args:
 		unknown_string (str): The string to match
 		possible_strings (list): List of strings to match against
-		cutoff (float): Minimum similarity ratio (0-1) to consider a match.
-					   Default is 0.6. Returns None if no match exceeds cutoff.
 	
 	Returns:
 		tuple: (best_match, similarity_score) or (None, 0) if no good match found
 	"""
-	if not unknown_string or not possible_strings:
-		return None, 0
 	
 	# Normalize the unknown string for comparison
 	unknown_normalized = unknown_string.lower().strip()
@@ -180,34 +185,29 @@ def find_best_match(unknown_string, possible_strings, cutoff=0.6):
 			best_ratio = ratio
 			best_match = candidate
 	
-	# Return None if best match doesn't meet cutoff threshold
-	if best_ratio < cutoff:
-		return None, best_ratio
-	
 	return best_match, best_ratio
 
 def enchant_book(hashes):
+	global w_pressed
 	#choose random enchantment level slot
 	enchant_level_slot = random.randint(1,3)
-	# calculate level slot height
+	# calculate level slot position
 	chosen_level_y1 = level_y1 + slotheight * (enchant_level_slot - 1)
 	chosen_level_y2 = level_y2 + slotheight * (enchant_level_slot - 1)
 
 	# Get books into cursor
 	pyautogui.click(book_x, book_y, button='middle', _pause=False)
-	#time.sleep(0.1)
 	# Insert book into enchantment table
 	pyautogui.click(ench_slot_x, ench_slot_y, button='left', _pause=False)
-	#time.sleep(0.1)
 	# Throw away other books
 	pyautogui.click(throw_away_x, throw_away_y, button='left', _pause=False)
 	#time.sleep(0.1)
 
-	# Capture the screen region
+	# Capture screen region
 	image = capture_screen_region("images/level", level_x1, chosen_level_y1, level_x2, chosen_level_y2)
 
-	# Hash the image
-	hash = hashlib.sha256(image.tobytes()).hexdigest()
+	# Hash the image, sha1 because it is fast and there is no security needed here
+	hash = hashlib.sha1(image.tobytes()).hexdigest()
 	
 	if hash in hashes:
 		level = hashes[hash]
@@ -217,6 +217,8 @@ def enchant_book(hashes):
 		# Show image to user for verification
 		image.show()
 		user_input = input("What number is being shown in the image? Hit Return to accept " + likely_level + ". ")
+		# Prevent false positive when entering the name of the enchantment
+		w_pressed = False
 		level = likely_level if user_input == "" else user_input
 		# Save for later
 		hashes[hash] = level
@@ -227,21 +229,28 @@ def enchant_book(hashes):
 	# Hover over enchanted book
 	pyautogui.moveTo(ench_slot_x, ench_slot_y)
 	
-	# Capture the screen region
+	# Capture screen region
 	image = capture_screen_region("images/ench", ench_x1, ench_y1, ench_x2, ench_y2)
 
-	# Hash the image
-	hash = hashlib.sha256(image.tobytes()).hexdigest()
+	# Hash the image, sha1 because it is fast and there is no security needed here
+	hash = hashlib.sha1(image.tobytes()).hexdigest()
 	
 	if hash in hashes:
 		ench = hashes[hash]
 	else:
 		# Extract text
 		likely_ench = extract_text_from_image(image, False)
-		match, ratio = find_best_match(likely_ench, possible_enchs)
+		# Remove all strings that have already been identified
+		possible_strings_removed = [item for item in possible_enchs if item not in hashes.values()]
+		match, ratio = find_best_match(likely_ench, possible_strings_removed)
 		# Show image to user for verification
 		image.show()
 		user_input = input("What enchantment is being shown in the image? Hit Return to accept " + match + ". ")
+		# Prevent false positive when entering the name of the enchantment
+		w_pressed = False
+		while user_input not in possible_strings_removed and not user_input == "":
+			print("That is not a valid remaining enchantment.")
+			user_input = input("Delete it from \"hashes.json\" or hit Return to accept " + match + ". ")
 		ench = match if user_input == "" else user_input
 		# Save for later
 		hashes[hash] = ench
@@ -285,8 +294,29 @@ def sort_nested_dict(d):
 			result[key] = value
 	return result
 
+def print_help():
+	print()
+	print("Usage: python collect_enchant_info.py <number_of_bookshelves> [enchants_to_do]")
+	print()
+	print("number_of_bookshelves: \tA number 0-15 describing how many bookshelves you have around your table")
+	print("enchants_to_do: \t0 means unlimited, until stopped manually (default)")
+	print("\t\t\tProvided any number >0 will do that number of iterations")
+	print("\t\t\tGiven a number <0 and more negative than the negative current count of enchantments with given amount of bookshelves will do the remaining number of enchants")
+	print("\t\t\tFor example: Given -1000 and having done 310 enchants so far will do 690 iterations")
+
 def main():
 	global w_pressed
+
+	if "--help" in sys.argv or "-h" in sys.argv:
+		print_help()
+		exit(0)
+
+	if sys.argv[1].isdigit() and int(sys.argv[1]) >= 0 and int(sys.argv[1]) <= 15:
+		bookshelves = sys.argv[1]
+	else:
+		print("Error: Number of bookshelves must be a number between 0 and 15!")
+		print_help()
+		exit(1)
 
 	try:
 		with open("hashes.json") as file:
@@ -303,34 +333,71 @@ def main():
 		print("Data file does not exist or is corrupted, creating a new one...")
 		data = defaultdict(lambda: defaultdict(lambda: defaultdict(int)))
 
+	total_count = 0
+	for results in data[bookshelves].values():
+		for count in results.values():
+			total_count += count
+	
+	if len(sys.argv) > 2:
+		if sys.argv[2].isdigit():
+			max_number = int(sys.argv[2])
+		elif sys.argv[2].startswith("-") and sys.argv[2][1:].isdigit() and -1 * int(sys.argv[2]) > total_count:
+			max_number = (-1 * int(sys.argv[2])) - total_count
+		else:
+			print("Error: Number of enchants to do must be positive or less than [(-1) * the number of enchants so far]!")
+			print_help()
+			exit(1)
+	else:
+		max_number = 0
+
+	# Check for mouse pointer control
+	pyautogui.click(ench_slot_x, ench_slot_y)
+	if (not pyautogui.position().x == ench_slot_x) or (not pyautogui.position().y == ench_slot_y):
+		print("Please grant the program access to the mouse pointer!")
+		exit(1)
+
 	print("Starting in 3 seconds... Move mouse to corner to abort")
 	time.sleep(3)
 
-	while True:
+	n = 0
+	places = len(str(max_number)) if max_number > 0 else 0
+
+	while n < max_number or max_number == 0:
 		try:
 			if w_pressed:
 				w_pressed = False
 				raise KeyboardInterrupt
 			level, ench = enchant_book(hashes)
-			print("Got " + ench + " for " + level + " levels.")
-			data["123"][level][ench] += 1
+			print("[" + str(n).zfill(places) + "/" + str(max_number) + "]: Got " + ench + " for " + level + " levels.")
+			data[bookshelves][level][ench] += 1
+			n += 1
 		except KeyboardInterrupt:
 			print("\nCtrl+C caught! Do you want to quit? (y/n)")
 			choice = input()
 			if choice.lower() == 'y':
-				print("Number of hashes in the lookup table: " + str(len(hashes.keys())))
-				with open ('hashes.json', 'w') as outfile:
-					# Sort by value alphabetically to make checking for missing (not yet encountered) values easier
-					hashes = {k: v for k, v in sorted(hashes.items(), key=sort_val)}
-					json.dump(hashes, outfile, indent=4)
-				
-				with open ('data.json', 'w') as outfile:
-					data = sort_nested_dict(data)
-					json.dump(data, outfile, indent=4)
-				print("Exiting...")
 				break
 			else:
 				print("Continuing...")
+
+	print("Number of hashes in the lookup table: " + str(len(hashes.keys())))
+	total_count = 0
+	for results in data[bookshelves].values():
+		for count in results.values():
+			total_count += count
+	print("Number of enchantments done with " + bookshelves + " bookshelves: " + str(total_count))
+
+	# Write the data
+	with open ('hashes.json', 'w') as outfile:
+		# Sort by value alphabetically to make checking for missing (not yet encountered) enchantments easier
+		hashes = {k: v for k, v in sorted(hashes.items(), key=sort_val)}
+		json.dump(hashes, outfile, indent=4)
+	
+	with open ('data.json', 'w') as outfile:
+		# Sort recursively
+		data = sort_nested_dict(data)
+		json.dump(data, outfile, indent=4)
+	print("Exiting...")
+	exit(0)
 
 if __name__ == "__main__":
 	main()
